@@ -8,7 +8,9 @@ import { SafeAreaProvider } from "react-native-safe-area-context";
 
 import { initDatabase } from "../src/services/storageService";
 import { insertCredential, getCredentials } from "../src/services/storageService";
-import { setKey, getKey } from "../src/services/secureKeyService";
+import { setKey, getKey, getBackendBaseUrl } from "../src/services/secureKeyService";
+
+import { BACKEND_URL_KEY_NAME } from "../src/services/secureKeyService";
 
 const DEBUG = false;
 

@@ -2,23 +2,13 @@ import * as SecureStore from "expo-secure-store";
 
 const DEBUG = false;
 
-export const GEMINI_KEY_NAME = "GEMINI_KEY_NAME" as const;
-export const RAPIDAPI_KEY_NAME = "RAPIDAPI_KEY_NAME" as const;
+export const BACKEND_URL_KEY_NAME = "BACKEND_URL_KEY_NAME" as const;
+export const AUTH_TOKEN_KEY_NAME = "AUTH_TOKEN_KEY_NAME" as const;
+export const USER_PREFERENCES_KEY_NAME = "USER_PREFERENCES_KEY_NAME" as const;
 export const DB_ENCRYPTION_KEY_NAME = "DB_ENCRYPTION_KEY_NAME" as const;
 
-const DEV_KEYS = { gemini: "", rapidapi: "" };
-
-function getFallbackForKey(key: string): string | null {
-  if (key === GEMINI_KEY_NAME && DEV_KEYS.gemini) {
-    return DEV_KEYS.gemini;
-  }
-
-  if (key === RAPIDAPI_KEY_NAME && DEV_KEYS.rapidapi) {
-    return DEV_KEYS.rapidapi;
-  }
-
-  return null;
-}
+const DEFAULT_BACKEND_BASE_URL =
+  process.env.EXPO_PUBLIC_BACKEND_URL || "";
 
 export async function setKey(key: string, value: string): Promise<void> {
   try {
@@ -34,14 +24,8 @@ export async function setKey(key: string, value: string): Promise<void> {
 export async function getKey(key: string): Promise<string | null> {
   try {
     const secureValue = await SecureStore.getItemAsync(key);
-    if (secureValue) {
+    if (typeof secureValue === "string") {
       return secureValue;
-    }
-
-    const fallback = getFallbackForKey(key);
-    if (fallback) {
-      console.warn("Using DEV fallback key for", key);
-      return fallback;
     }
 
     return null;
@@ -50,13 +34,22 @@ export async function getKey(key: string): Promise<string | null> {
     // if (DEBUG) console.error("getKey failed", typedError);
     void typedError;
 
-    const fallback = getFallbackForKey(key);
-    if (fallback) {
-      console.warn("Using DEV fallback key for", key);
-      return fallback;
+    return null;
+  }
+}
+
+export async function getBackendBaseUrl(): Promise<string> {
+  try {
+    const configured = await getKey(BACKEND_URL_KEY_NAME);
+
+    if (configured && configured.trim().length > 0) {
+      return configured.trim();
     }
 
-    return null;
+    // fallback to env
+    return DEFAULT_BACKEND_BASE_URL;
+  } catch (error) {
+    return DEFAULT_BACKEND_BASE_URL;
   }
 }
 
