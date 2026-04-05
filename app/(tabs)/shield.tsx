@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { StyleSheet, View, Text, Pressable, Image, ActivityIndicator, Alert } from "react-native";
 import * as ImagePicker from "expo-image-picker";
 import * as MediaLibrary from "expo-media-library";
-import * as FileSystem from "expo-file-system";
+import * as FileSystem from "expo-file-system/legacy";
 import Feather from "@expo/vector-icons/Feather";
 import axios from "axios";
 
@@ -34,6 +34,12 @@ export default function ShieldScreen() {
   const processImage = async () => {
     if (!selectedImage) return;
 
+    const cacheDir = FileSystem.cacheDirectory ?? FileSystem.documentDirectory;
+    if (!cacheDir) {
+      Alert.alert("Protection Failed", "No writable cache directory available on this device.");
+      return;
+    }
+
     try {
       // Step 2: LSB Watermark
       setStep(2);
@@ -42,7 +48,7 @@ export default function ShieldScreen() {
       // Step 3: Cloud Function (Adversarial Noise via FGSM)
       setStep(3);
       const base64Data = await FileSystem.readAsStringAsync(watermarkedUri, {
-        encoding: (FileSystem as any).EncodingType.Base64,
+        encoding: FileSystem.EncodingType.Base64,
       });
       
       const functionUrl = await getBackendBaseUrl() || "https://us-central1-mock-project.cloudfunctions.net/adversarial_noise";
@@ -57,8 +63,10 @@ export default function ShieldScreen() {
         });
         if (response.data && response.data.processedImage) {
            const processedB64 = response.data.processedImage;
-           noiseUri = `${(FileSystem as any).cacheDirectory}noise_${Date.now()}.jpg`;
-           await FileSystem.writeAsStringAsync(noiseUri, processedB64, { encoding: (FileSystem as any).EncodingType.Base64 });
+           noiseUri = `${cacheDir}noise_${Date.now()}.jpg`;
+           await FileSystem.writeAsStringAsync(noiseUri, processedB64, {
+             encoding: FileSystem.EncodingType.Base64,
+           });
         }
       } catch (err) {
         console.warn("Cloud function failed, falling back to local only", err);
@@ -87,7 +95,7 @@ export default function ShieldScreen() {
   const saveToGallery = async () => {
     if (!protectedImage) return;
     try {
-      const { status } = await MediaLibrary.requestPermissionsAsync();
+      const { status } = await MediaLibrary.requestPermissionsAsync(false, ["photo"]);
       if (status === 'granted') {
         await MediaLibrary.saveToLibraryAsync(protectedImage);
         Alert.alert("Success", "Protected image saved to your gallery!");
