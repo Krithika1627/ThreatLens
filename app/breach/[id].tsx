@@ -47,6 +47,11 @@ export default function BreachDetailScreen() {
         <Feather name="alert-triangle" size={32} color="#F87171" style={{marginBottom: 12}} />
         <Text style={styles.title}>{breach.name}</Text>
         <Text style={styles.date}>Occurred: {new Date(breach.date).toLocaleDateString()}</Text>
+        {!!breach.matchedCredential && (
+          <Text style={styles.matchedCredential}>
+            Matched {breach.matchedCredentialType ?? "credential"}: {breach.matchedCredential}
+          </Text>
+        )}
       </View>
 
       <Text style={styles.sectionTitle}>What was leaked?</Text>
@@ -117,6 +122,12 @@ const styles = StyleSheet.create({
     fontFamily: "JetBrainsMono-Regular",
     fontSize: 14,
     marginTop: 8,
+  },
+  matchedCredential: {
+    color: "#E8E9EB",
+    fontFamily: "JetBrainsMono-Regular",
+    fontSize: 12,
+    marginTop: 10,
   },
   sectionTitle: {
     color: "#E8E9EB",

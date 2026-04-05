@@ -84,11 +84,28 @@ function isQuotaOrRateLimitError(error: unknown): boolean {
   );
 }
 
+function isCompromisedOrInvalidKeyError(error: unknown): boolean {
+  if (!(error instanceof Error)) {
+    return false;
+  }
+
+  const message = error.message.toLowerCase();
+  return (
+    message.includes("api key was reported as leaked") ||
+    message.includes("invalid api key") ||
+    message.includes("permission denied") ||
+    message.includes("403")
+  );
+}
+
 function canTryNextModel(error: unknown): boolean {
   return isModelUnavailableError(error) || isQuotaOrRateLimitError(error);
 }
 
 function getClassifyFallbackExplanation(error: unknown): string {
+  if (isCompromisedOrInvalidKeyError(error)) {
+    return "Gemini API key is invalid or flagged. Set a new EXPO_PUBLIC_GEMINI_API_KEY and restart the app.";
+  }
   if (isQuotaOrRateLimitError(error)) {
     return "AI quota exceeded right now. Please retry shortly or update your Gemini API key/billing.";
   }
@@ -96,6 +113,9 @@ function getClassifyFallbackExplanation(error: unknown): string {
 }
 
 function getBreachFallbackGuidance(error: unknown): string {
+  if (isCompromisedOrInvalidKeyError(error)) {
+    return "- AI guidance unavailable because Gemini API key is invalid/flagged\n- Add a new API key and restart the app\n- In the meantime: change passwords, enable 2FA, and monitor suspicious logins";
+  }
   if (isQuotaOrRateLimitError(error)) {
     return "- AI guidance is temporarily unavailable due to quota limits\n- Change passwords for affected accounts\n- Enable 2FA and watch for phishing attempts";
   }
@@ -301,7 +321,11 @@ export async function classifyMessage(text: string): Promise<ScanResult> {
 
     return applyClassificationGuardrails(text, aiResult);
   } catch (error) {
-    console.error("classifyMessage failed", error);
+    if (isCompromisedOrInvalidKeyError(error) || isQuotaOrRateLimitError(error)) {
+      console.warn("classifyMessage degraded", error);
+    } else {
+      console.error("classifyMessage failed", error);
+    }
     return fallbackScanResult(text, getClassifyFallbackExplanation(error));
   }
 }
@@ -315,7 +339,11 @@ export async function generateBreachGuidance(breachMetadata: object): Promise<st
     const responseText = await generateWithGemini(prompt);
     return responseText.trim();
   } catch (error) {
-    console.error("generateBreachGuidance failed", error);
+    if (isCompromisedOrInvalidKeyError(error) || isQuotaOrRateLimitError(error)) {
+      console.warn("generateBreachGuidance degraded", error);
+    } else {
+      console.error("generateBreachGuidance failed", error);
+    }
     return getBreachFallbackGuidance(error);
   }
 }

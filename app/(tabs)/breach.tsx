@@ -77,6 +77,11 @@ export default function BreachScreen() {
                 <Text style={styles.breachName}>{breach.name}</Text>
               </View>
               <Text style={styles.breachDate}>Date: {new Date(breach.date).toLocaleDateString()}</Text>
+              {!!breach.matchedCredential && (
+                <Text style={styles.matchedCredentialText}>
+                  Matched: {breach.matchedCredential}
+                </Text>
+              )}
               <Text style={styles.breachDataTypes}>
                 Leaked: {breach.dataClasses.join(", ")}
               </Text>
@@ -195,6 +200,12 @@ const styles = StyleSheet.create({
     fontFamily: "JetBrainsMono-Regular",
     fontSize: 12,
     marginBottom: 4,
+  },
+  matchedCredentialText: {
+    color: "#E8E9EB",
+    fontFamily: "JetBrainsMono-Regular",
+    fontSize: 12,
+    marginBottom: 6,
   },
   breachDataTypes: {
     color: "#FBBF24",

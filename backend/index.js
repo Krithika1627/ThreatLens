@@ -76,20 +76,17 @@ function mapXposedResponse(data) {
   }));
 }
 
-function mapBreachDirectoryResponse(data) {
-  const possibleList =
-    (Array.isArray(data) && data) ||
-    (Array.isArray(data?.result) && data.result) ||
-    (Array.isArray(data?.results) && data.results) ||
-    [];
+function mapLeakCheckResponse(data) {
+  const sources = Array.isArray(data?.sources) ? data.sources : [];
+  const fields = normalizeStringArray(data?.fields);
 
-  return possibleList.map((item, index) => ({
-    id: String(item?.id ?? index),
-    breachName: item?.name || item?.title || item?.breach || "Unknown",
-    date: item?.date || item?.breach_date || "",
-    dataTypes: normalizeStringArray(item?.fields || item?.data || item?.exposedData),
+  return sources.map((item, index) => ({
+    id: String(item?.name || index),
+    breachName: item?.name || "Unknown",
+    date: item?.date || "",
+    dataTypes: fields,
     severity: "medium",
-    source: "breachdirectory",
+    source: "leakcheck",
   }));
 }
 function stripMarkdownFences(text) {
@@ -176,7 +173,7 @@ app.get("/breach/email/:email", async (req, res) => {
 
     try {
       const response = await axios.get(
-        `https://xposedornot.com/api/v1/check-email/${encodeURIComponent(email)}`,
+        `https://api.xposedornot.com/v1/check-email/${encodeURIComponent(email)}`,
         {
           timeout: 10000,
         }
@@ -200,24 +197,26 @@ app.post("/breach/username", async (req, res) => {
     const username =
       typeof req.body?.username === "string" ? req.body.username.trim() : "";
 
-    if (!username || !process.env.RAPIDAPI_KEY) {
+    if (!username) {
       return res.status(400).json({ error: "Something went wrong" });
     }
 
-    const response = await axios.get("https://breachdirectory.p.rapidapi.com/", {
+    const response = await axios.get("https://leakcheck.io/api/public", {
       params: {
-        func: "auto",
-        term: username,
-      },
-      headers: {
-        "x-rapidapi-key": process.env.RAPIDAPI_KEY,
-        "x-rapidapi-host": "breachdirectory.p.rapidapi.com",
+        check: username,
       },
       timeout: 10000,
     });
 
-    return res.json(mapBreachDirectoryResponse(response.data));
-  } catch (_error) {
+    if (response.status !== 200 || response.data?.success !== true) {
+      return res.json([]);
+    }
+
+    return res.json(mapLeakCheckResponse(response.data));
+  } catch (error) {
+    if (axios.isAxiosError(error) && (error.response?.status === 404 || error.response?.status === 429)) {
+      return res.json([]);
+    }
     return res.status(500).json({ error: "Something went wrong" });
   }
 });

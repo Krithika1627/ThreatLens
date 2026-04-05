@@ -23,8 +23,9 @@ Notes:
 Create a `.env` file inside the backend folder:
 
 GEMINI_API_KEY=your_gemini_api_key_here
-RAPIDAPI_KEY=your_rapidapi_key_here
 PORT=3000
+
+LeakCheck public API is used for username/email leak lookups and does not require a key.
 
 ---
 
