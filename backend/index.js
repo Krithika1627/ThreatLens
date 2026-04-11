@@ -3,6 +3,11 @@ const cors = require("cors");
 const dotenv = require("dotenv");
 const axios = require("axios");
 const { GoogleGenAI } = require("@google/genai");
+const multer = require("multer");
+const path = require("path");
+const fs = require("fs");
+const { spawn } = require("child_process");
+const { v4: uuidv4 } = require("uuid");
 
 dotenv.config();
 
@@ -17,6 +22,40 @@ const CLASSIFY_PROMPT_TEMPLATE =
 
 app.use(cors());
 app.use(express.json());
+
+// Configure multer for image uploads
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    const uploadDir = path.join(__dirname, "uploads");
+    if (!fs.existsSync(uploadDir)) {
+      fs.mkdirSync(uploadDir, { recursive: true });
+    }
+    cb(null, uploadDir);
+  },
+  filename: (req, file, cb) => {
+    const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
+    cb(null, uniqueSuffix + path.extname(file.originalname));
+  },
+});
+
+const upload = multer({
+  storage,
+  limits: { fileSize: 20 * 1024 * 1024 }, // 20MB limit
+  fileFilter: (req, file, cb) => {
+    const allowedTypes = ["image/jpeg", "image/png", "image/jpg", "image/webp"];
+    if (allowedTypes.includes(file.mimetype)) {
+      cb(null, true);
+    } else {
+      cb(new Error("Invalid file type. Only JPEG, PNG, and WebP are allowed."));
+    }
+  },
+});
+
+// Ensure output directory exists
+const outputDir = path.join(__dirname, "protected");
+if (!fs.existsSync(outputDir)) {
+  fs.mkdirSync(outputDir, { recursive: true });
+}
 
 function stripMarkdownFences(value) {
   return String(value)
@@ -224,3 +263,100 @@ app.post("/breach/username", async (req, res) => {
 app.listen(port, () => {
   process.stdout.write(`ThreatLens backend listening on port ${port}\n`);
 });
+
+// Image protection endpoint
+app.post("/protect-image", upload.single("image"), async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ error: "No image file provided" });
+    }
+
+    const inputPath = req.file.path;
+    const protectionUuid = req.body?.uuid || uuidv4();
+    const strength = parseFloat(req.body?.strength) || 0.03;
+
+    // Output path for protected image
+    const outputFilename = `protected_${Date.now()}${path.extname(req.file.originalname)}`;
+    const outputPath = path.join(__dirname, "protected", outputFilename);
+
+    // Run Python protection script
+    const pythonProcess = spawn("python3", [
+      path.join(__dirname, "image_protect.py"),
+      inputPath,
+      outputPath,
+      "--uuid", protectionUuid,
+      "--strength", strength.toString(),
+    ]);
+
+    let stdout = "";
+    let stderr = "";
+
+    pythonProcess.stdout.on("data", (data) => {
+      stdout += data.toString();
+    });
+
+    pythonProcess.stderr.on("data", (data) => {
+      stderr += data.toString();
+    });
+
+    pythonProcess.on("close", (code) => {
+      // Clean up input file
+      try {
+        fs.unlinkSync(inputPath);
+      } catch (e) {
+        // Ignore cleanup errors
+      }
+
+      if (code !== 0) {
+        console.error("Python script error:", stderr);
+        return res.status(500).json({
+          error: "Image protection failed",
+          details: stderr || "Unknown error"
+        });
+      }
+
+      try {
+        const result = JSON.parse(stdout);
+
+        if (!result.success) {
+          return res.status(500).json({
+            error: result.error || "Protection failed"
+          });
+        }
+
+        // Read the protected image and send as base64
+        const imageBuffer = fs.readFileSync(outputPath);
+        const base64Image = imageBuffer.toString("base64");
+        const mimeType = req.file.mimetype;
+
+        // Clean up output file after reading
+        try {
+          fs.unlinkSync(outputPath);
+        } catch (e) {
+          // Ignore cleanup errors
+        }
+
+        return res.json({
+          success: true,
+          image: `data:${mimeType};base64,${base64Image}`,
+          protectionId: result.protection_id,
+          protectionsApplied: result.protections_applied,
+          message: result.message
+        });
+
+      } catch (parseError) {
+        console.error("Failed to parse Python output:", stdout, stderr);
+        return res.status(500).json({
+          error: "Failed to process protection result"
+        });
+      }
+    });
+
+  } catch (error) {
+    console.error("Image protection error:", error);
+    return res.status(500).json({ error: "Something went wrong" });
+  }
+});
+
+// Serve protected images temporarily
+app.use("/protected", express.static(path.join(__dirname, "protected")));
