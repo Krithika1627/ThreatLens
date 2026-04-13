@@ -1,172 +1,180 @@
 # ThreatLens
 
-ThreatLens is an Expo React Native app for personal digital safety:
-- Message risk classification (safe/spam/scam/phishing)
-- Breach lookup for emails and usernames
-- Image protection workflow
+ThreatLens is an Expo React Native app for personal digital safety.
 
-This guide explains complete setup and run flows for:
-- Expo Go (quick start)
-- Android Studio (full native flow)
+This README is for a first-time contributor who just cloned the repo and wants to run the app using either:
 
-## 1. Prerequisites
+1. Expo Go on a physical phone
+2. Android Studio emulator on desktop (Windows or macOS)
 
-Install the following first:
-- Node.js 18+ and npm
-- Git
-- Android Studio (latest stable)
-- Android SDK Platform + Build Tools (from SDK Manager)
-- JDK 17 (usually bundled with Android Studio)
+## What You Need
 
-Optional:
-- Physical Android phone with Expo Go app installed
+1. Node.js 18+ (Node.js 20 LTS recommended)
+2. npm (comes with Node)
+3. Git
+4. Android Studio (for Android emulator flow)
+5. JDK 17 (required for Android build toolchain)
 
-## 2. Install Project Dependencies
-
-From the project root:
+## 1. Clone And Install
 
 ```bash
+git clone <your-repo-url>
+cd threat_lens
 npm install
 ```
 
-## 3. Environment Variables
+## 2. Create Environment File
 
 Create a file named `.env` in project root.
 
-Add:
-
-```env
-EXPO_PUBLIC_GEMINI_API_KEY=your_new_gemini_api_key
-EXPO_PUBLIC_CLOUD_FUNCTION_URL=https://asia-south1-threatlens-492816.cloudfunctions.net/protect-image
+```dotenv
+EXPO_PUBLIC_GEMINI_API_KEY=your_gemini_api_key
+EXPO_PUBLIC_CLOUD_FUNCTION_URL=https://us-central1-threatlens-492816.cloudfunctions.net/protect-image
+EXPO_PUBLIC_CLOUD_FUNCTION_API_KEY=key_of_your_cloud_function
 ```
 
-Notes:
-- This app reads Gemini key from `EXPO_PUBLIC_GEMINI_API_KEY`.
-- Cloud image protection uses `EXPO_PUBLIC_CLOUD_FUNCTION_URL`.
-- If you change `.env`, restart Expo with cache clear:
+If you change `.env`, restart Metro with cache clear:
 
 ```bash
 npx expo start -c
 ```
 
-## 4. Run With Expo Go (Quick Start)
+## 3. Run On Phone With Expo Go
 
-Use this when you want the fastest preview loop.
+Use this for fastest testing loop.
 
-1. Start Metro:
+1. Install Expo Go on your phone.
+2. Connect laptop and phone to the same Wi-Fi network.
+3. Start the project:
 
 ```bash
 npx expo start
 ```
 
-2. Open the app:
-- Android phone: scan QR from Expo Go
-- Android emulator: press `a` in terminal (if Expo Go is installed in emulator)
+4. Scan the QR code from Expo Go.
 
-Expo Go limitations for this project:
-- Custom native notification listener integration is not available in Expo Go.
-- Features depending on custom native module/service may be limited.
-
-## 5. Run With Android Studio (Full Native)
-
-Use this for full Android-native behavior (recommended for this project).
-
-### 5.1 Create and Start Emulator
-
-1. Open Android Studio.
-2. Open Device Manager.
-3. Create an AVD (recommended API 34+).
-4. Start emulator.
-
-### 5.2 Build and Install Native App
-
-From project root:
-
-```bash
-npx expo run:android
-```
-
-This builds and installs the app using your local Android toolchain.
-
-### 5.3 Start Metro for Dev Client
-
-After install:
-
-```bash
-npx expo start --dev-client
-```
-
-Then press `a` to open in the installed app on emulator/device.
-
-## 6. Cloud Function (Image Protection)
-
-Image protection runs through Google Cloud Function.
-
-Deploy command (from `cloud-function` folder):
-
-```bash
-gcloud functions deploy protect-image \
-	--gen2 \
-	--runtime python312 \
-	--region asia-south1 \
-	--trigger-http \
-	--allow-unauthenticated \
-	--memory 1Gi \
-	--timeout 120 \
-	--source ./ \
-	--entry-point protect_image_endpoint
-```
-
-After deployment, set `EXPO_PUBLIC_CLOUD_FUNCTION_URL` in root `.env`.
-
-## 7. Troubleshooting
-
-### Gemini key errors (403/invalid/leaked)
-- Generate a new Gemini API key.
-- Update `.env` with `EXPO_PUBLIC_GEMINI_API_KEY`.
-- Restart with:
-
-```bash
-npx expo start -c
-```
-
-### Emulator not detected
-- Ensure emulator is running first.
-- Retry:
-
-```bash
-npx expo run:android
-```
-
-### Gradle build issues
-- Clean and rebuild:
-
-```bash
-cd android
-./gradlew clean
-cd ..
-npx expo run:android
-```
-
-On Windows PowerShell use:
-
-```powershell
-cd android
-.\gradlew.bat clean
-cd ..
-npx expo run:android
-```
-
-### Phone cannot load bundle
-- Keep phone and laptop on same Wi-Fi.
-- Try tunnel mode:
+If the phone cannot connect, run tunnel mode:
 
 ```bash
 npx expo start --tunnel
 ```
 
-## 8. Security Notes
+Note: Expo Go does not include custom native modules from this app, so native notification interception features are limited in Expo Go.
 
-- Never commit `.env` files.
-- `.gitignore` already excludes `.env`.
-- Rotate Gemini key immediately if leaked.
+## 4. Run On Android Studio Emulator (Windows)
+
+### 4.1 Install Android SDK Components
+
+In Android Studio, open SDK Manager and install:
+
+1. Android SDK Platform (API 34 or newer)
+2. Android SDK Build-Tools
+3. Android SDK Platform-Tools
+4. Android SDK Command-line Tools (latest)
+5. Android Emulator
+
+### 4.2 Set Environment Variables (Permanent)
+
+Set User variables:
+
+1. `JAVA_HOME` = `C:\Users\<your-user>\.jdk\jdk-17.x.x`
+2. `ANDROID_HOME` = `C:\Users\<your-user>\AppData\Local\Android\Sdk`
+3. `ANDROID_SDK_ROOT` = `C:\Users\<your-user>\AppData\Local\Android\Sdk`
+
+Add to User `Path`:
+
+1. `%JAVA_HOME%\bin`
+2. `%ANDROID_HOME%\platform-tools`
+3. `%ANDROID_HOME%\emulator`
+4. `%ANDROID_HOME%\cmdline-tools\latest\bin`
+
+Open a new terminal and verify:
+
+```powershell
+java -version
+adb version
+emulator -list-avds
+```
+
+### 4.3 Create Emulator And Run
+
+1. Android Studio > Device Manager > Create device > Start it.
+2. From project root:
+
+```powershell
+npx expo run:android
+```
+
+3. In a second terminal:
+
+```powershell
+npx expo start --dev-client
+```
+
+4. Press `a` to open on the running emulator.
+
+## 5. Run On Android Studio Emulator (macOS)
+
+### 5.1 Install Android SDK Components
+
+In Android Studio, install the same components listed in the Windows section.
+
+### 5.2 Set Environment Variables (zsh)
+
+Add this to `~/.zshrc`:
+
+```bash
+export ANDROID_HOME=$HOME/Library/Android/sdk
+export ANDROID_SDK_ROOT=$ANDROID_HOME
+export JAVA_HOME=$(/usr/libexec/java_home -v 17)
+export PATH=$JAVA_HOME/bin:$ANDROID_HOME/platform-tools:$ANDROID_HOME/emulator:$ANDROID_HOME/cmdline-tools/latest/bin:$PATH
+```
+
+Apply and verify:
+
+```bash
+source ~/.zshrc
+java -version
+adb version
+emulator -list-avds
+```
+
+### 5.3 Create Emulator And Run
+
+1. Android Studio > Device Manager > Create device > Start it.
+2. From project root:
+
+```bash
+npx expo run:android
+```
+
+3. In a second terminal:
+
+```bash
+npx expo start --dev-client
+```
+
+4. Press `a` to open on the running emulator.
+
+## 6. Common Issues
+
+### `adb` not recognized
+
+Android SDK paths are missing from `Path`. Add platform-tools and open a new terminal.
+
+### Java 8 is being used instead of Java 17
+
+Move Java 17 path above old Java paths in `Path`, then reopen terminal.
+
+### No Android devices found
+
+Start emulator first, then run `adb devices` and retry `npx expo run:android`.
+
+### Linking scheme warning
+
+Already configured in `app.json` with `scheme: threatlens`.
+
+## 7. Security Notes
+
+1. Never commit `.env`.
+2. If any API key is exposed, rotate it immediately.

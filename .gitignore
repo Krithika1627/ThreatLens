@@ -41,4 +41,8 @@ yarn-error.*
 /ios
 /android
 
+# Android Studio / IntelliJ
+.idea/
+*.iml
+
 .env
