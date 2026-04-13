@@ -6,7 +6,7 @@ import * as FileSystem from "expo-file-system/legacy";
 import Feather from "@expo/vector-icons/Feather";
 
 import { useDashboardStore } from "../../src/stores/dashboardStore";
-import { getCloudFunctionUrl } from "../../src/services/secureKeyService";
+import { getCloudFunctionApiKey, getCloudFunctionUrl } from "../../src/services/secureKeyService";
 
 type ProcessStep = 'idle' | 'picked' | 'protecting' | 'done' | 'error';
 
@@ -60,19 +60,25 @@ export default function ShieldScreen() {
       const endpointUrl = normalizedBase.endsWith("/protect-image")
         ? normalizedBase
         : `${normalizedBase}/protect-image`;
+      const functionApiKey = await getCloudFunctionApiKey();
 
       // Send as JSON with base64 image (supported by cloud function)
       const requestBody = {
-        image: base64Data,
+        image_base64: base64Data,
         strength: 0.05,
       };
+
+      const headers: Record<string, string> = {
+        "Content-Type": "application/json",
+      };
+      if (functionApiKey) {
+        headers.Authorization = `Bearer ${functionApiKey}`;
+      }
 
       const response = await fetch(endpointUrl, {
         method: "POST",
         body: JSON.stringify(requestBody),
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers,
       });
 
       if (!response.ok) {
@@ -82,27 +88,21 @@ export default function ShieldScreen() {
 
       const result = await response.json();
 
-      if (!result.success) {
-        throw new Error(result.error || "Protection failed");
+      const imageData = typeof result.perturbed_image_base64 === "string"
+        ? result.perturbed_image_base64
+        : typeof result.image === "string"
+          ? result.image
+          : "";
+
+      if (!imageData) {
+        throw new Error(result.error || "Invalid image data received from server.");
       }
-
-      // The cloud function returns base64 image data
-      // Parse the data URI: "data:image/jpeg;base64,<base64data>"
-      const dataUri = result.image;
-      const base64Match = dataUri.match(/^data:image\/(jpeg|png|jpg|webp);base64,(.+)$/);
-
-      if (!base64Match) {
-        throw new Error("Invalid image data received from server.");
-      }
-
-      const imageType = base64Match[1];
-      const imageData = base64Match[2];
 
       // Save protected image to cache
       const cacheDir = FileSystem.cacheDirectory ?? FileSystem.documentDirectory;
       if (!cacheDir) throw new Error("No cache directory available");
 
-      const fileExt = imageType === 'jpeg' || imageType === 'jpg' ? 'jpg' : imageType;
+      const fileExt = "jpg";
       const protectedUri = `${cacheDir}protected_${Date.now()}.${fileExt}`;
 
       await FileSystem.writeAsStringAsync(protectedUri, imageData, {

@@ -2,6 +2,7 @@ import * as SecureStore from 'expo-secure-store';
 
 export const GEMINI_KEY_NAME = "GEMINI_API_KEY";
 export const CLOUD_FUNCTION_URL_KEY_NAME = "THREATLENS_CLOUD_FUNCTION_URL";
+export const CLOUD_FUNCTION_API_KEY_NAME = "THREATLENS_CLOUD_FUNCTION_API_KEY";
 
 export async function setKey(key: string, value: string): Promise<void> {
   try {
@@ -47,7 +48,25 @@ export async function getCloudFunctionUrl(): Promise<string | null> {
   }
 
   // Default: deployed cloud function URL
-  return "https://asia-south1-threatlens-492816.cloudfunctions.net/protect-image";
+  return "https://us-central1-threatlens-492816.cloudfunctions.net/protect-image";
+}
+
+export async function getCloudFunctionApiKey(): Promise<string | null> {
+  try {
+    const stored = await SecureStore.getItemAsync(CLOUD_FUNCTION_API_KEY_NAME);
+    if (typeof stored === "string" && stored.trim().length > 0) {
+      return stored.trim();
+    }
+  } catch {
+    // Ignore SecureStore errors
+  }
+
+  const envKey = process.env.EXPO_PUBLIC_CLOUD_FUNCTION_API_KEY;
+  if (typeof envKey === "string" && envKey.trim().length > 0) {
+    return envKey.trim();
+  }
+
+  return null;
 }
 
 // Ensure defaults for mock environment
