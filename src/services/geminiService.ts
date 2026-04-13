@@ -338,6 +338,23 @@ export async function classifyMessage(text: string): Promise<ScanResult> {
   }
 }
 
+export async function classifyWithRetry(text: string, retries = 3) {
+  for (let i = 0; i < retries; i++) {
+    try {
+      return await classifyMessage(text);
+    } catch (err: any) {
+      if (err?.message?.includes("503")) {
+        console.log("🔁 Retrying Gemini...");
+        await new Promise(res => setTimeout(res, 2000));
+      } else {
+        throw err;
+      }
+    }
+  }
+
+  throw new Error("Failed after retries");
+}
+
 export async function generateBreachGuidance(breachMetadata: object): Promise<string> {
   try {
     const prompt = `You are a cybersecurity assistant. The user's information was found in a data breach with these details: ${JSON.stringify(breachMetadata)}. 

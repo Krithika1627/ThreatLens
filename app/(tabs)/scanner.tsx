@@ -3,6 +3,8 @@ import { StyleSheet, View, Text, TextInput, Pressable, ScrollView, ActivityIndic
 import { useRouter } from "expo-router";
 import Feather from "@expo/vector-icons/Feather";
 import { useScannerStore } from "../../src/stores/scannerStore";
+import { Button } from "react-native";
+import { sendLocalNotification } from "../../src/services/notificationService";
 
 export default function ScannerScreen() {
   const router = useRouter();

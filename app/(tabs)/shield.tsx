@@ -27,7 +27,7 @@ export default function ShieldScreen() {
     let result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ['images'],
       allowsEditing: false,
-      quality: 1,
+      quality: 0.5,
     });
 
     if (!result.canceled) {
@@ -38,7 +38,7 @@ export default function ShieldScreen() {
     }
   };
 
-  const processImage = async () => {
+    const processImage = async () => {
     if (!selectedImage) return;
 
     setStep('protecting');
@@ -65,7 +65,7 @@ export default function ShieldScreen() {
       // Send as JSON with base64 image (supported by cloud function)
       const requestBody = {
         image_base64: base64Data,
-        strength: 0.05,
+        strength: 0.3,
       };
 
       const headers: Record<string, string> = {
@@ -75,18 +75,32 @@ export default function ShieldScreen() {
         headers.Authorization = `Bearer ${functionApiKey}`;
       }
 
+      // 🔍 DEBUG LOG 1: What URL are we hitting and how big is the image?
+      console.log("=== CLOUD FUNCTION CALL ===");
+      console.log("Target URL:", endpointUrl);
+      console.log("Base64 String Length:", base64Data.length, "characters (~", Math.round(base64Data.length * 0.75 / 1024 / 1024), "MB)");
+
       const response = await fetch(endpointUrl, {
         method: "POST",
         body: JSON.stringify(requestBody),
         headers,
       });
 
+      // 🔍 DEBUG LOG 2: Did the server respond?
+      console.log("Server Response Status:", response.status, response.statusText);
+
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
+        // 🔍 DEBUG LOG 3: What did the server say was wrong?
+        console.log("Server Error Details:", JSON.stringify(errorData));
         throw new Error(errorData.error || `Server error: ${response.status}`);
       }
 
       const result = await response.json();
+
+      // 🔍 DEBUG LOG 4: Did we get an image back?
+      console.log("Server Success! Keys received:", Object.keys(result));
+      console.log("Has perturbed_image_base64?", !!result.perturbed_image_base64);
 
       const imageData = typeof result.perturbed_image_base64 === "string"
         ? result.perturbed_image_base64
@@ -119,7 +133,7 @@ export default function ShieldScreen() {
 
       setStep('done');
     } catch (error: any) {
-      console.error("Image protection error:", error);
+      console.error("=== FETCH FAILED ===", error.message);
       setErrorMessage(error.message || "An error occurred while securing the image.");
       setStep('error');
     }
