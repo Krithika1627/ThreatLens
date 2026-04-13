@@ -1,4 +1,4 @@
-import * as BackgroundFetch from 'expo-background-fetch';
+import * as BackgroundTask from 'expo-background-task';
 import * as TaskManager from 'expo-task-manager';
 import { useBreachStore } from "../stores/breachStore";
 import { sendLocalNotification } from "./notificationService";
@@ -24,7 +24,7 @@ TaskManager.defineTask(BREACH_CHECK_TASK, async () => {
   try {
     const credentials = useBreachStore.getState().credentials;
     if (credentials.length === 0) {
-      return BackgroundFetch.BackgroundFetchResult.NoData;
+      return BackgroundTask.BackgroundTaskResult.Success;
     }
 
     const itemsToCheck = credentials.map(c => c.value);
@@ -61,22 +61,20 @@ TaskManager.defineTask(BREACH_CHECK_TASK, async () => {
           threatlensInternal: true,
         }
       );
-      return BackgroundFetch.BackgroundFetchResult.NewData;
+      return BackgroundTask.BackgroundTaskResult.Success;
     }
 
-    return BackgroundFetch.BackgroundFetchResult.NoData;
+    return BackgroundTask.BackgroundTaskResult.Success;
   } catch (error) {
     console.error("Background fetch failed", error);
-    return BackgroundFetch.BackgroundFetchResult.Failed;
+    return BackgroundTask.BackgroundTaskResult.Failed;
   }
 });
 
 export async function registerBackgroundFetchTasks() {
   try {
-    await BackgroundFetch.registerTaskAsync(BREACH_CHECK_TASK, {
-      minimumInterval: 60 * 60, // 1 hour (in seconds)
-      stopOnTerminate: false,
-      startOnBoot: true,
+    await BackgroundTask.registerTaskAsync(BREACH_CHECK_TASK, {
+      minimumInterval: 60, // 1 hour (in minutes)
     });
     console.log("Registered breach check background task");
   } catch (err) {

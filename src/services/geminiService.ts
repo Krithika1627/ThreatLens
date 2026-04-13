@@ -8,11 +8,11 @@ const GEMINI_MODEL_CANDIDATES = [
   "gemini-2.0-flash",
   "gemini-1.5-flash",
   "gemini-2.5-flash",
-  "gemini-1.5-pro",
 ];
 
 const MODEL_BACKOFF_DEFAULT_MS = 60_000;
 const MODEL_BACKOFF_DAILY_QUOTA_MS = 6 * 60 * 60 * 1000;
+const MODEL_UNAVAILABLE_BACKOFF_MS = 24 * 60 * 60 * 1000;
 const modelCooldownUntil = new Map<string, number>();
 
 const GEMINI_SYSTEM_PROMPT = `SYSTEM: You are a cybersecurity expert specialising in consumer fraud detection. Focus on the Indian context (UPI scams, OTP fraud, KYC phishing).
@@ -145,9 +145,11 @@ function applyModelBackoff(modelName: string, error: unknown): void {
 
   const rawMessage = error.message;
   const retryAfterMs = extractRetryAfterMs(rawMessage);
-  const backoffMs = isDailyModelQuotaError(rawMessage)
-    ? Math.max(retryAfterMs, MODEL_BACKOFF_DAILY_QUOTA_MS)
-    : Math.max(retryAfterMs, MODEL_BACKOFF_DEFAULT_MS);
+  const backoffMs = isModelUnavailableError(error)
+    ? MODEL_UNAVAILABLE_BACKOFF_MS
+    : isDailyModelQuotaError(rawMessage)
+      ? Math.max(retryAfterMs, MODEL_BACKOFF_DAILY_QUOTA_MS)
+      : Math.max(retryAfterMs, MODEL_BACKOFF_DEFAULT_MS);
 
   modelCooldownUntil.set(modelName, Date.now() + backoffMs);
 }
@@ -401,7 +403,7 @@ export async function classifyMessage(text: string): Promise<ScanResult> {
 
     return applyClassificationGuardrails(text, aiResult);
   } catch (error) {
-    if (isCompromisedOrInvalidKeyError(error) || isQuotaOrRateLimitError(error)) {
+    if (isCompromisedOrInvalidKeyError(error) || isQuotaOrRateLimitError(error) || isModelUnavailableError(error)) {
       console.warn("classifyMessage degraded", error);
     } else {
       console.error("classifyMessage failed", error);
