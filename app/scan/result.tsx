@@ -84,28 +84,30 @@ export default function ScanResultScreen() {
             {trackedSuggestions.map((suggestion) => (
               <View key={suggestion.id} style={styles.listItem}>
                 <Feather
-                  name={suggestion.acted ? "check-square" : "square"}
+                  name={suggestion.acted ? "check-square" : suggestion.isFallback ? "info" : "square"}
                   size={16}
                   color={suggestion.acted ? "#4ADE80" : "#8B8F99"}
                 />
                 <Text style={styles.listText}>{suggestion.text}</Text>
-                <Pressable
-                  style={[
-                    styles.doneButton,
-                    suggestion.acted && styles.doneButtonCompleted,
-                  ]}
-                  onPress={() => markSuggestionAsDone(suggestion.id)}
-                  disabled={suggestion.acted}
-                >
-                  <Text
+                {!suggestion.isFallback ? (
+                  <Pressable
                     style={[
-                      styles.doneButtonText,
-                      suggestion.acted && styles.doneButtonTextCompleted,
+                      styles.doneButton,
+                      suggestion.acted && styles.doneButtonCompleted,
                     ]}
+                    onPress={() => markSuggestionAsDone(suggestion.id)}
+                    disabled={suggestion.acted}
                   >
-                    {suggestion.acted ? "Done" : "Mark as Done"}
-                  </Text>
-                </Pressable>
+                    <Text
+                      style={[
+                        styles.doneButtonText,
+                        suggestion.acted && styles.doneButtonTextCompleted,
+                      ]}
+                    >
+                      {suggestion.acted ? "Done" : "Mark as Done"}
+                    </Text>
+                  </Pressable>
+                ) : null}
               </View>
             ))}
           </View>

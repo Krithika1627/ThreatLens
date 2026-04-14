@@ -46,7 +46,9 @@ export const useScannerStore = create<ScannerState>()((set, get) => ({
             : state.flaggedMessagesScanCount,
       }));
 
-      dash.registerSuggestions("scan", result.id, result.suggestedActions);
+      dash.registerSuggestions("scan", result.id, result.suggestedActions, {
+        isFallback: result.classification === "UNAVAILABLE",
+      });
 
       return result;
     } catch (error) {

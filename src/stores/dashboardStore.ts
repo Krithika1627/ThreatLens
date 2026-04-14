@@ -7,6 +7,7 @@ export interface TrackedSuggestion {
   id: string;
   text: string;
   acted: boolean;
+  isFallback: boolean;
   source: SuggestionSource;
   sourceId: string;
 }
@@ -46,7 +47,8 @@ export interface DashboardState {
   registerSuggestions: (
     source: SuggestionSource,
     sourceId: string,
-    suggestionTexts: string[]
+    suggestionTexts: string[],
+    options?: { isFallback?: boolean }
   ) => void;
   markSuggestionAsDone: (id: string) => void;
   getSuggestionsForSource: (
@@ -100,7 +102,7 @@ export const useDashboardStore = create<DashboardState>((set, get) => ({
     }));
   },
 
-  registerSuggestions: (source, sourceId, suggestionTexts) => {
+  registerSuggestions: (source, sourceId, suggestionTexts, options) => {
     const normalized = suggestionTexts
       .map(normalizeSuggestionText)
       .filter((text) => text.length > 0);
@@ -132,6 +134,7 @@ export const useDashboardStore = create<DashboardState>((set, get) => ({
           id: `${source}-${sourceId}-${Date.now()}-${index}`,
           text,
           acted: false,
+          isFallback: options?.isFallback === true,
           source,
           sourceId,
         }));
@@ -166,7 +169,7 @@ export const useDashboardStore = create<DashboardState>((set, get) => ({
   markSuggestionAsDone: (id) => {
     set((state) => {
       const current = state.suggestions.find((suggestion) => suggestion.id === id);
-      if (!current || current.acted) {
+      if (!current || current.acted || current.isFallback) {
         return state;
       }
 
